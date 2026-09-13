@@ -6,6 +6,7 @@ import ParticleBackground from './components/ParticleBackground';
 import Nav from './components/Nav';
 import Hero from './components/Hero';
 import ProjectGrid from './components/ProjectGrid';
+import OpenSource from './components/OpenSource';
 import Skills from './components/Skills';
 import AboutTerminal from './components/AboutTerminal';
 import ContactForm from './components/ContactForm';
@@ -82,14 +83,16 @@ export default function App() {
         />
         <Hero />
         <ProjectGrid onOpen={handleOpen} onFilter={useFilter} />
+        <OpenSource />
         <Skills />
         <AboutTerminal />
         <ContactForm onSuccess={markContactSent} showToast={showToast} />
         <footer>
-          Built with curiosity · data from{' '}
+          Built with curiosity · stats synced from{' '}
           <a href="https://github.com/Faisal01011" target="_blank" rel="noopener noreferrer">
             github.com/Faisal01011
           </a>{' '}
+          · Sep 2026
         </footer>
       </div>
       <Modal project={activeProject} onClose={handleClose} />

@@ -28,6 +28,8 @@ export default function AboutTerminal() {
             Teach machines to grade, guide, and occasionally recognize digits.
             <br />
             Ship playful systems people can actually run in the browser or offline.
+            <br />
+            Read the real implementation, write the test, send the fix upstream.
           </div>
           <div className="t-line">
             <span className="t-prompt">$</span> <span className="t-cmd">ls interests/</span>
@@ -42,12 +44,15 @@ export default function AboutTerminal() {
             <span className="t-hl">local-ai/</span>
             &nbsp;&nbsp;
             <span className="t-hl">3d-web/</span>
+            &nbsp;&nbsp;
+            <span className="t-hl">upstream/</span>
           </div>
           <div className="t-line">
             <span className="t-prompt">$</span> <span className="t-cmd">echo $STATUS</span>
           </div>
           <div className="t-line t-out">
-            Currently shipping LeafScan (offline plant disease + pest triage) and polishing IONSTORM.
+            16 public repos · 7 merged PRs into Soup (6.2k★ LLM fine-tune CLI) · open PR on
+            supabase/evals. Still shipping LeafScan and polishing IONSTORM.
           </div>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { githubStats } from '../data/github';
 
 const PHRASES = [
   'AI/ML + Full-stack · India',
@@ -6,6 +7,7 @@ const PHRASES = [
   'Neon arcade games in the browser…',
   '3D system-design flight simulators…',
   'Local AI that never leaves your machine…',
+  'Contributing upstream to LLM tooling…',
 ];
 
 export default function Hero() {
@@ -53,28 +55,23 @@ export default function Hero() {
         </div>
         <p className="hero-desc">
           Full-stack + AI/ML engineer. I ship neon arcade games, on-device vision models, 3D
-          system-design simulators, and private local AI tools — usually in TypeScript, React,
-          Three.js, FastAPI and a dash of TensorFlow Lite.
+          system-design simulators, and private local AI tools — and send the hard fixes back
+          upstream. Usually TypeScript, React, Three.js, FastAPI and a dash of TensorFlow Lite.
         </p>
         <div className="cta-row">
           <a className="btn btn-primary" href="#projects">
             Explore projects →
           </a>
+          <a className="btn btn-ghost" href="#oss">
+            Upstream PRs
+          </a>
           <a
             className="btn btn-ghost"
-            href="https://github.com/Faisal01011"
+            href={githubStats.profileUrl}
             target="_blank"
             rel="noopener noreferrer"
           >
             GitHub
-          </a>
-          <a
-            className="btn btn-ghost"
-            href="https://ionstorm.vercel.app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Play IONSTORM
           </a>
         </div>
       </div>
@@ -90,25 +87,25 @@ export default function Hero() {
           />
           <div>
             <div className="profile-name">Faisal Fayaz</div>
-            <div className="profile-handle">@Faisal01011</div>
+            <div className="profile-handle">@{githubStats.username}</div>
           </div>
         </div>
         <div className="stat-grid">
           <div className="stat">
-            <div className="stat-val">9</div>
-            <div className="stat-label">Repos</div>
+            <div className="stat-val">{githubStats.publicRepos}</div>
+            <div className="stat-label">Public repos</div>
           </div>
           <div className="stat">
-            <div className="stat-val">7</div>
+            <div className="stat-val">{githubStats.mergedUpstreamPrs}</div>
+            <div className="stat-label">Merged PRs</div>
+          </div>
+          <div className="stat">
+            <div className="stat-val">{githubStats.liveDemos}</div>
             <div className="stat-label">Live demos</div>
-          </div>
-          <div className="stat">
-            <div className="stat-val">∞</div>
-            <div className="stat-label">Curiosity</div>
           </div>
         </div>
         <div className="profile-links">
-          <a href="https://github.com/Faisal01011" target="_blank" rel="noopener noreferrer">
+          <a href={githubStats.profileUrl} target="_blank" rel="noopener noreferrer">
             GitHub
           </a>
           <a href="https://linkedin.com/in/faisal-fayaz" target="_blank" rel="noopener noreferrer">
