@@ -6,7 +6,7 @@ export const githubStats = {
   following: 4,
   liveDemos: 5,
   mergedUpstreamPrs: 7,
-  openUpstreamPrs: 1,
+  openUpstreamPrs: 0,
   asOf: '2026-09-13',
 };
 
@@ -106,42 +106,6 @@ export const upstreamProjects: UpstreamProject[] = [
         url: 'https://github.com/MakazhanAlpamys/Soup/pull/422',
         status: 'merged',
         mergedAt: '2026-08-16',
-      },
-    ],
-  },
-  {
-    id: 'supabase-evals',
-    name: 'evals',
-    org: 'supabase',
-    url: 'https://github.com/supabase/evals',
-    blurb: 'Open evaluation harness for coding agents. PR open to normalize Claude Code Agent tool output.',
-    language: 'TypeScript',
-    prs: [
-      {
-        repo: 'supabase/evals',
-        repoUrl: 'https://github.com/supabase/evals',
-        number: 210,
-        title: 'fix(core): normalize Claude Code Agent tool',
-        url: 'https://github.com/supabase/evals/pull/210',
-        status: 'open',
-      },
-    ],
-  },
-  {
-    id: 'langfuse',
-    name: 'langfuse',
-    org: 'langfuse',
-    url: 'https://github.com/langfuse/langfuse',
-    blurb: 'LLM observability platform. Submitted a reasoning-output fix for empty completions (closed unmerged).',
-    language: 'TypeScript',
-    prs: [
-      {
-        repo: 'langfuse/langfuse',
-        repoUrl: 'https://github.com/langfuse/langfuse',
-        number: 16158,
-        title: 'fix: render reasoning for empty completions',
-        url: 'https://github.com/langfuse/langfuse/pull/16158',
-        status: 'closed',
       },
     ],
   },

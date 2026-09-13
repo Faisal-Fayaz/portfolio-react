@@ -51,8 +51,8 @@ export default function AboutTerminal() {
             <span className="t-prompt">$</span> <span className="t-cmd">echo $STATUS</span>
           </div>
           <div className="t-line t-out">
-            16 public repos · 7 merged PRs into Soup (6.2k★ LLM fine-tune CLI) · open PR on
-            supabase/evals. Still shipping LeafScan and polishing IONSTORM.
+            16 public repos · 7 merged PRs into Soup (6.2k★ LLM fine-tune CLI). Still shipping
+            LeafScan and polishing IONSTORM.
           </div>
         </div>
       </div>
