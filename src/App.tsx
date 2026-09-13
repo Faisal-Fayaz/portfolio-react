@@ -14,6 +14,7 @@ import Modal from './components/Modal';
 import Toast from './components/Toast';
 import CursorCompanion from './components/CursorCompanion';
 import './App.css';
+import './oss.css';
 
 export default function App() {
   const { theme, toggleTheme } = useTheme();
@@ -54,7 +55,6 @@ export default function App() {
     [noticeProject],
   );
 
-  // Type "ionstorm" anywhere (outside inputs) for SURGE achievement
   useEffect(() => {
     let buffer = '';
     const onKey = (e: KeyboardEvent) => {
