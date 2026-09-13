@@ -16,6 +16,78 @@ export interface Project {
 
 export const projects: Project[] = [
   {
+    id: 'autoapply',
+    name: 'AutoApply',
+    icon: '📄',
+    tags: ['tool', 'ai'],
+    short:
+      'Semantic job-form autofill for Greenhouse, Lever, Workday and LinkedIn Easy Apply — local-first, confidence-scored.',
+    long: 'Chrome MV3 extension + FastAPI backend that treats ATS field matching as a scored classification problem. Every fill is logged with confidence so accuracy is measured, not guessed. Profiles stay in chrome.storage.local; cloud sync is opt-in.',
+    highlights: [
+      'Semantic label matching instead of brittle CSS selectors',
+      'Confidence threshold + one-key-per-field constraint',
+      'Workday shadow-DOM + LinkedIn multi-step support',
+      'Accuracy dashboard across four ATS platforms',
+    ],
+    demo: null,
+    repo: 'https://github.com/Faisal01011/autoapply',
+    lang: 'Python / JavaScript',
+  },
+  {
+    id: 'repropack',
+    name: 'Repropack',
+    icon: '📦',
+    tags: ['tool'],
+    short:
+      'Wrap a failing command and get a redacted, review-ready reproduction report — locally, with no upload.',
+    long: 'CLI that streams a command, captures result + system/Git context, redacts secrets (JWTs, API keys, emails, home paths), and writes Markdown + JSON reports. Built for bug reports you can actually share.',
+    highlights: [
+      'Local-only; nothing leaves the machine',
+      'Heuristic redaction with stable aliases',
+      'Markdown + JSON reports, preview mode',
+      'Preserves wrapped-command exit codes',
+    ],
+    demo: null,
+    repo: 'https://github.com/Faisal01011/repropack-cli',
+    lang: 'TypeScript',
+  },
+  {
+    id: 'llama-autotune',
+    name: 'llama-autotune',
+    icon: '🎛️',
+    tags: ['ai', 'tool'],
+    short:
+      'C++17 llama.cpp hardware auto-tuner with a live Dear ImGui dashboard for thread and batch tradeoffs.',
+    long: 'Finds good llama.cpp CPU runtime settings for one local GGUF: generation threads, prompt-processing threads, and prompt micro-batch size. Measures real prompt vs decode throughput and shows Fastest / Long-doc / Memory / Balanced presets.',
+    highlights: [
+      'Real llama.cpp C API, no mock results',
+      'Live Dear ImGui charts and candidate table',
+      'Transparent balanced scoring formula',
+      'CLI + GUI + smoke verification paths',
+    ],
+    demo: null,
+    repo: 'https://github.com/Faisal01011/llama-autotune',
+    lang: 'C++',
+  },
+  {
+    id: 'codebase-xray',
+    name: 'Codebase X-Ray',
+    icon: '🩻',
+    tags: ['tool', 'web'],
+    short:
+      'Point it at a GitHub repo and get a live dependency graph, churn×complexity hotspots, blast radius and a reading path.',
+    long: 'Interactive architecture maps for unfamiliar codebases. Tree-sitter graph + git churn + cyclomatic complexity, rendered in D3. Optional on-demand Ollama file summaries stay local.',
+    highlights: [
+      'Tree-sitter dependency graph',
+      'Churn × complexity risk layer',
+      'Blast-radius ripple + suggested reading path',
+      'FastAPI + React + D3',
+    ],
+    demo: null,
+    repo: 'https://github.com/Faisal01011/codebase-xray',
+    lang: 'TypeScript / Python',
+  },
+  {
     id: 'ionstorm',
     name: 'IONSTORM',
     icon: '⚡',
@@ -164,6 +236,7 @@ export const projects: Project[] = [
 export const skills = [
   'TypeScript',
   'JavaScript',
+  'C++',
   'React',
   'Vite',
   'Three.js',
@@ -175,6 +248,8 @@ export const skills = [
   'TensorFlow Lite',
   'Faster-Whisper',
   'Ollama / Llama',
+  'llama.cpp',
+  'PEFT / QLoRA',
   'Colyseus',
   'Expo / React Native',
   'Zustand',
