@@ -80,7 +80,12 @@ export default function ParticleBackground({ theme }: { theme: 'dark' | 'light' 
       id="bg-canvas"
       ref={canvasRef}
       aria-hidden
-      style={{ width: '100vw', height: '100vh' }}
+      style={{
+        width: '100vw',
+        height: '100vh',
+        WebkitMaskImage: 'linear-gradient(to bottom, #000 0%, #000 58%, transparent 82%)',
+        maskImage: 'linear-gradient(to bottom, #000 0%, #000 58%, transparent 82%)',
+      }}
     />
   );
 }
