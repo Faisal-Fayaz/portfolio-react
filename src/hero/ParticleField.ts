@@ -6,21 +6,17 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 
 export type FieldFilter = 'all' | 'game' | 'ai' | 'web' | 'mobile' | 'tool';
 
-const COUNT = 420;
-const RADIUS = 0.11;
-const CONTACT = 0.24;
+const RING = [
+  { count: 28, radius: 2.15, tiltX: 0.55, tiltZ: 0.18, speed: 0.18, type: 0, color: 0x5ff2ff },
+  { count: 36, radius: 3.05, tiltX: -0.4, tiltZ: 0.5, speed: -0.13, type: 1, color: 0xff4fd8 },
+  { count: 22, radius: 3.85, tiltX: 1.05, tiltZ: -0.25, speed: 0.09, type: 2, color: 0xffb454 },
+];
 
-function filterCode(filter: FieldFilter) {
+function filterCode(filter) {
   if (filter === 'game') return 1;
   if (filter === 'ai' || filter === 'mobile') return 2;
   if (filter === 'tool' || filter === 'web') return 3;
   return 0;
-}
-
-function hashId(id: string) {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h + id.charCodeAt(i) * (i + 3)) % 12;
-  return h;
 }
 
 export default class ParticleField {
@@ -47,83 +43,105 @@ export default class ParticleField {
     this.renderer.setPixelRatio(this.sizes.pixelRatio);
     this.renderer.setSize(this.sizes.width, this.sizes.height, false);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.15;
+    this.renderer.toneMappingExposure = 1.05;
 
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(42, this.sizes.width / this.sizes.height, 0.1, 80);
-    this.camera.position.set(0, 0.2, 11);
+    this.camera = new THREE.PerspectiveCamera(36, this.sizes.width / this.sizes.height, 0.1, 60);
+    this.camera.position.set(0, 0.15, 10);
     this.scene.add(this.camera);
+    this.scene.add(new THREE.AmbientLight(0x8fd4ff, 0.35));
+    const key = new THREE.DirectionalLight(0xffffff, 1.2);
+    key.position.set(3, 4, 6);
+    this.scene.add(key);
+    this.rim = new THREE.PointLight(0x5ff2ff, 18, 16);
+    this.rim.position.set(-2, 1.4, 3);
+    this.scene.add(this.rim);
 
-    this.ambient = new THREE.AmbientLight(0xb8fff6, 0.55);
-    this.scene.add(this.ambient);
-    this.key = new THREE.DirectionalLight(0xe8ffff, 1.1);
-    this.key.position.set(4, 6, 8);
-    this.scene.add(this.key);
-    this.fill = new THREE.PointLight(0x5ff2ff, 12, 18);
-    this.fill.position.set(-3, 1, 4);
-    this.scene.add(this.fill);
+    this.root = new THREE.Group();
+    this.root.position.set(2.35, 0.15, 0);
+    this.scene.add(this.root);
+
+    this.core = new THREE.Mesh(
+      new THREE.IcosahedronGeometry(0.62, 1),
+      new THREE.MeshStandardMaterial({
+        color: 0x07212a,
+        emissive: 0x5ff2ff,
+        emissiveIntensity: 0.55,
+        roughness: 0.25,
+        metalness: 0.55,
+      }),
+    );
+    this.coreWire = new THREE.Mesh(
+      new THREE.IcosahedronGeometry(0.66, 1),
+      new THREE.MeshBasicMaterial({ color: 0x5ff2ff, wireframe: true, transparent: true, opacity: 0.35 }),
+    );
+    this.root.add(this.core, this.coreWire);
+
+    this.ringGroups = [];
+    this.dummy = new THREE.Object3D();
+    this.color = new THREE.Color();
+    this.hot = new THREE.Color(0xffffff);
+    const nodeGeo = new THREE.OctahedronGeometry(1, 0);
+
+    RING.forEach((spec, ringIndex) => {
+      const group = new THREE.Group();
+      group.rotation.x = spec.tiltX;
+      group.rotation.z = spec.tiltZ;
+      this.root.add(group);
+      const torus = new THREE.Mesh(
+        new THREE.TorusGeometry(spec.radius, 0.012, 8, 96),
+        new THREE.MeshBasicMaterial({ color: spec.color, transparent: true, opacity: 0.28 }),
+      );
+      group.add(torus);
+      const mesh = new THREE.InstancedMesh(nodeGeo, new THREE.MeshStandardMaterial({
+        color: spec.color,
+        emissive: spec.color,
+        emissiveIntensity: 0.8,
+        roughness: 0.3,
+        metalness: 0.4,
+      }), spec.count);
+      mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(spec.count * 3), 3);
+      mesh.frustumCulled = false;
+      group.add(mesh);
+      const items = [];
+      for (let i = 0; i < spec.count; i++) {
+        items.push({
+          angle: (i / spec.count) * Math.PI * 2,
+          heat: 0,
+          type: spec.type,
+          id: (i + ringIndex * 7) % 12,
+          radius: spec.radius,
+        });
+      }
+      this.ringGroups.push({ spec, group, torus, mesh, items });
+    });
+
+    const spokeCount = 18;
+    this.spokePositions = new Float32Array(spokeCount * 6);
+    this.spokeGeo = new THREE.BufferGeometry();
+    this.spokeGeo.setAttribute('position', new THREE.BufferAttribute(this.spokePositions, 3));
+    this.spokes = new THREE.LineSegments(
+      this.spokeGeo,
+      new THREE.LineBasicMaterial({ color: 0x5ff2ff, transparent: true, opacity: 0.22 }),
+    );
+    this.root.add(this.spokes);
+    this.spokeCount = spokeCount;
 
     this.cursor = {
+      ndc: new THREE.Vector2(0.25, 0.1),
       raycaster: new THREE.Raycaster(),
-      ndc: new THREE.Vector2(0, 0),
       plane: new THREE.Plane(new THREE.Vector3(0, 0, 1), 0),
       hit: new THREE.Vector3(),
-      pos: new THREE.Vector3(),
-      vel: new THREE.Vector3(),
-      sampled: false,
+      local: new THREE.Vector3(),
     };
     window.addEventListener('pointermove', this.onPointerMove, { passive: true });
 
-    this.positions = new Float32Array(COUNT * 3);
-    this.velocities = new Float32Array(COUNT * 3);
-    this.heat = new Float32Array(COUNT);
-    this.types = new Uint8Array(COUNT);
-    this.ids = new Uint8Array(COUNT);
-
-    for (let i = 0; i < COUNT; i++) {
-      const u = Math.random();
-      const v = Math.random();
-      const w = Math.random();
-      const theta = u * Math.PI * 2;
-      const phi = Math.acos(v * 2 - 1);
-      const r = 4.4 * Math.cbrt(w);
-      this.positions[i * 3] = Math.sin(theta) * Math.sin(phi) * r * 1.35;
-      this.positions[i * 3 + 1] = Math.cos(phi) * r * 0.72;
-      this.positions[i * 3 + 2] = Math.cos(theta) * Math.sin(phi) * r * 0.55;
-      this.types[i] = Math.floor(Math.random() * 3);
-      this.ids[i] = Math.floor(Math.random() * 12);
-    }
-
-    this.geometry = new THREE.IcosahedronGeometry(1, 1);
-    this.material = new THREE.MeshStandardMaterial({
-      color: 0xd7f6ff,
-      emissive: 0x5ff2ff,
-      emissiveIntensity: 0.15,
-      roughness: 0.35,
-      metalness: 0.15,
-      transparent: true,
-      opacity: 0.95,
-    });
-
-    this.mesh = new THREE.InstancedMesh(this.geometry, this.material, COUNT);
-    this.mesh.frustumCulled = false;
-    this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    this.dummy = new THREE.Object3D();
-    this.color = new THREE.Color();
-    this.baseSee = new THREE.Color(0x7eeadf);
-    this.basePlay = new THREE.Color(0x5ff2ff);
-    this.baseRemember = new THREE.Color(0xc4b5fd);
-    this.hot = new THREE.Color(0xffb454);
-    this.mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(COUNT * 3), 3);
-    this.scene.add(this.mesh);
-    this.writeInstances();
-
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(this.sizes.width, this.sizes.height), 0.55, 0.7, 0.18);
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(this.sizes.width, this.sizes.height), 0.45, 0.65, 0.2);
     this.composer.addPass(this.bloom);
-
     this.clock = new THREE.Clock();
+    this.elapsed = 0;
     this.resize();
     this.resizeObserver = new ResizeObserver(this.resize);
     this.resizeObserver.observe(document.documentElement);
@@ -143,71 +161,41 @@ export default class ParticleField {
     this.cursor.ndc.y = -(event.clientY / window.innerHeight) * 2 + 1;
   }
 
-  writeInstances() {
-    for (let i = 0; i < COUNT; i++) {
-      const inactive = this.isInactive(i);
-      const s = inactive ? RADIUS * 0.28 : RADIUS;
-      this.dummy.position.set(this.positions[i * 3], this.positions[i * 3 + 1], this.positions[i * 3 + 2]);
-      this.dummy.scale.setScalar(s);
-      this.dummy.updateMatrix();
-      this.mesh.setMatrixAt(i, this.dummy.matrix);
-      const t = this.types[i];
-      const base = t === 1 ? this.basePlay : t === 2 ? this.baseRemember : this.baseSee;
-      this.color.copy(base).lerp(this.hot, Math.min(1, this.heat[i]));
-      if (inactive) this.color.multiplyScalar(0.25);
-      this.mesh.setColorAt(i, this.color);
-    }
-    this.mesh.instanceMatrix.needsUpdate = true;
-    if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
-  }
-
-  isInactive(i) {
+  isInactive(type) {
     if (this.filterMode === 0) return false;
-    if (this.filterMode === 1) return this.types[i] !== 1;
-    if (this.filterMode === 2) return this.types[i] !== 0;
-    return this.types[i] !== 2;
+    if (this.filterMode === 1) return type !== 1;
+    if (this.filterMode === 2) return type !== 0;
+    return type !== 2;
   }
 
-  setFilter(filter) {
-    this.filterMode = filterCode(filter);
-  }
+  setFilter(filter) { this.filterMode = filterCode(filter); }
 
   setFocus(projectId) {
-    this.focusId = projectId ? hashId(projectId) : -1;
+    if (!projectId) { this.focusId = -1; return; }
+    let h = 0;
+    for (let i = 0; i < projectId.length; i++) h = (h + projectId.charCodeAt(i) * (i + 3)) % 12;
+    this.focusId = h;
   }
 
   setTheme(theme) {
     this.theme = theme;
-    if (!this.material) return;
+    if (!this.bloom) return;
     if (theme === 'dark') {
-      this.baseSee.set(0x7eeadf);
-      this.basePlay.set(0x5ff2ff);
-      this.baseRemember.set(0xe9d5ff);
-      this.hot.set(0xffb454);
-      this.material.color.set(0xe8f7ff);
-      this.material.emissive.set(0x5ff2ff);
-      this.ambient.intensity = 0.35;
-      this.key.intensity = 0.9;
-      this.fill.intensity = 16;
-      if (this.bloom) { this.bloom.strength = 0.7; this.bloom.threshold = 0.12; }
+      this.bloom.strength = 0.55;
+      this.bloom.threshold = 0.16;
+      this.rim.intensity = 18;
+      this.core.material.emissiveIntensity = 0.65;
     } else {
-      this.baseSee.set(0x0f766e);
-      this.basePlay.set(0x0891b2);
-      this.baseRemember.set(0x6d28d9);
-      this.hot.set(0xea580c);
-      this.material.color.set(0x164e63);
-      this.material.emissive.set(0x155e75);
-      this.ambient.intensity = 0.7;
-      this.key.intensity = 1.05;
-      this.fill.intensity = 8;
-      if (this.bloom) { this.bloom.strength = 0.28; this.bloom.threshold = 0.35; }
+      this.bloom.strength = 0.22;
+      this.bloom.threshold = 0.4;
+      this.rim.intensity = 8;
+      this.core.material.emissiveIntensity = 0.35;
     }
   }
 
   play() {
     if (this.playing) return;
     this.playing = true;
-    this.cursor.sampled = false;
     this.clock.getDelta();
     this.renderer.setAnimationLoop(this.tick);
   }
@@ -220,7 +208,7 @@ export default class ParticleField {
 
   resize() {
     this.setSizes();
-    if (!this.renderer || !this.sizes.width || !this.sizes.height) return;
+    if (!this.renderer || !this.sizes.width) return;
     this.camera.aspect = this.sizes.width / this.sizes.height;
     this.camera.updateProjectionMatrix();
     this.renderer.setPixelRatio(this.sizes.pixelRatio);
@@ -231,88 +219,72 @@ export default class ParticleField {
 
   tick() {
     const dt = Math.min(this.clock.getDelta(), 1 / 30);
+    this.elapsed += dt;
     this.cursor.raycaster.setFromCamera(this.cursor.ndc, this.camera);
     this.cursor.raycaster.ray.intersectPlane(this.cursor.plane, this.cursor.hit);
-    if (this.cursor.sampled) this.cursor.vel.copy(this.cursor.hit).sub(this.cursor.pos);
-    else this.cursor.vel.set(0, 0, 0);
-    this.cursor.pos.copy(this.cursor.hit);
-    this.cursor.sampled = true;
+    this.cursor.local.copy(this.cursor.hit);
+    this.root.worldToLocal(this.cursor.local);
 
-    const cursorR = 2.15;
-    const cursorR2 = cursorR * cursorR;
+    const breathe = 1 + Math.sin(this.elapsed * 1.6) * 0.04;
+    this.core.scale.setScalar(breathe);
+    this.coreWire.rotation.y = this.elapsed * 0.25;
+    this.core.rotation.y = this.elapsed * -0.12;
+    this.core.rotation.x = Math.sin(this.elapsed * 0.4) * 0.12;
+    this.root.rotation.y = Math.sin(this.elapsed * 0.12) * 0.08;
+    this.root.rotation.x = Math.sin(this.elapsed * 0.09) * 0.04;
 
-    for (let i = 0; i < COUNT; i++) {
-      const ix = i * 3;
-      let x = this.positions[ix];
-      let y = this.positions[ix + 1];
-      let z = this.positions[ix + 2];
-      let vx = this.velocities[ix];
-      let vy = this.velocities[ix + 1];
-      let vz = this.velocities[ix + 2];
-
-      const dx = x - this.cursor.pos.x;
-      const dy = y - this.cursor.pos.y;
-      const dz = z - this.cursor.pos.z;
-      const d2 = dx * dx + dy * dy + dz * dz;
-      if (d2 < cursorR2) {
-        const d = Math.sqrt(d2) || 0.001;
-        const ratio = Math.max(0, 1 - Math.max(0, d / cursorR - 0.45) / 0.55);
-        vx += this.cursor.vel.x * ratio * 0.55;
-        vy += this.cursor.vel.y * ratio * 0.55;
-        vz += this.cursor.vel.z * ratio * 0.55;
-        this.heat[i] += Math.hypot(this.cursor.vel.x, this.cursor.vel.y, this.cursor.vel.z) * ratio * 4.2;
+    const tmp = new THREE.Vector3();
+    const hottest = [];
+    for (const ring of this.ringGroups) {
+      const inactive = this.isInactive(ring.spec.type);
+      ring.group.rotation.y += ring.spec.speed * dt;
+      ring.torus.material.opacity = inactive ? 0.05 : 0.32;
+      for (let i = 0; i < ring.items.length; i++) {
+        const n = ring.items[i];
+        const x = Math.cos(n.angle) * n.radius;
+        const z = Math.sin(n.angle) * n.radius;
+        tmp.set(x, 0, z);
+        ring.group.localToWorld(tmp);
+        this.root.worldToLocal(tmp);
+        const d = tmp.distanceTo(this.cursor.local);
+        const near = Math.max(0, 1 - d / 1.8);
+        n.heat = n.heat * (1 - 2.4 * dt) + near * near * 0.9;
+        if (this.focusId >= 0 && n.id === this.focusId) n.heat = Math.min(1, n.heat + 0.05);
+        const lift = n.heat * 0.28;
+        const s = inactive ? 0.025 : 0.055 + n.heat * 0.08;
+        this.dummy.position.set(x, lift, z);
+        this.dummy.scale.setScalar(s);
+        this.dummy.rotation.set(n.angle, this.elapsed * 0.4, 0);
+        this.dummy.updateMatrix();
+        ring.mesh.setMatrixAt(i, this.dummy.matrix);
+        this.color.setHex(ring.spec.color).lerp(this.hot, Math.min(1, n.heat));
+        if (inactive) this.color.multiplyScalar(0.18);
+        ring.mesh.setColorAt(i, this.color);
+        if (!inactive && n.heat > 0.35) hottest.push({ x: tmp.x, y: tmp.y, z: tmp.z, heat: n.heat });
       }
-
-      const len = Math.hypot(x, y, z) || 1;
-      vx -= (x / len) * 0.55 * dt;
-      vy -= (y / len) * 0.55 * dt;
-      vz -= (z / len) * 0.55 * dt;
-
-      if (this.focusId >= 0 && this.ids[i] === this.focusId) {
-        this.heat[i] += 0.04;
-        vx -= (x / len) * -0.15 * dt;
-      }
-
-      if (this.isInactive(i)) {
-        vx *= 0.84; vy *= 0.84; vz *= 0.84;
-        this.heat[i] *= 0.86;
-      }
-
-      const end = Math.min(COUNT, i + 18);
-      for (let j = i + 1; j < end; j++) {
-        const jx = j * 3;
-        const ox = this.positions[jx] - x;
-        const oy = this.positions[jx + 1] - y;
-        const oz = this.positions[jx + 2] - z;
-        const dist = Math.hypot(ox, oy, oz) || 0.0001;
-        if (dist < CONTACT) {
-          const nx = ox / dist, ny = oy / dist, nz = oz / dist;
-          const overlap = (CONTACT - dist) * 0.5;
-          x -= nx * overlap; y -= ny * overlap; z -= nz * overlap;
-          this.positions[jx] += nx * overlap;
-          this.positions[jx + 1] += ny * overlap;
-          this.positions[jx + 2] += nz * overlap;
-          const rel = (vx - this.velocities[jx]) * nx + (vy - this.velocities[jx + 1]) * ny + (vz - this.velocities[jx + 2]) * nz;
-          const bounce = rel * 0.92;
-          vx -= nx * bounce; vy -= ny * bounce; vz -= nz * bounce;
-          this.velocities[jx] += nx * bounce;
-          this.velocities[jx + 1] += ny * bounce;
-          this.velocities[jx + 2] += nz * bounce;
-          const impact = Math.max(0, rel - 0.01) * 8;
-          this.heat[i] += impact;
-          this.heat[j] += impact;
-        }
-      }
-
-      x += vx; y += vy; z += vz;
-      const damp = 1 - 0.55 * dt;
-      vx *= damp; vy *= damp; vz *= damp;
-      this.heat[i] *= 1 - 2.2 * dt;
-      this.positions[ix] = x; this.positions[ix + 1] = y; this.positions[ix + 2] = z;
-      this.velocities[ix] = vx; this.velocities[ix + 1] = vy; this.velocities[ix + 2] = vz;
+      ring.mesh.instanceMatrix.needsUpdate = true;
+      if (ring.mesh.instanceColor) ring.mesh.instanceColor.needsUpdate = true;
     }
 
-    this.writeInstances();
+    hottest.sort((a, b) => b.heat - a.heat);
+    for (let i = 0; i < this.spokeCount; i++) {
+      const o = i * 6;
+      this.spokePositions[o] = 0;
+      this.spokePositions[o + 1] = 0;
+      this.spokePositions[o + 2] = 0;
+      const t = hottest[i];
+      if (t) {
+        this.spokePositions[o + 3] = t.x;
+        this.spokePositions[o + 4] = t.y;
+        this.spokePositions[o + 5] = t.z;
+      } else {
+        this.spokePositions[o + 3] = 0;
+        this.spokePositions[o + 4] = 0;
+        this.spokePositions[o + 5] = 0;
+      }
+    }
+    this.spokeGeo.attributes.position.needsUpdate = true;
+    this.spokes.material.opacity = 0.12 + Math.min(0.35, hottest.length * 0.03);
     this.composer.render();
   }
 
@@ -320,9 +292,7 @@ export default class ParticleField {
     this.pause();
     this.resizeObserver?.disconnect();
     window.removeEventListener('pointermove', this.onPointerMove);
-    this.geometry?.dispose();
-    this.material?.dispose();
-    this.composer?.dispose();
     this.renderer?.dispose();
+    this.composer?.dispose();
   }
 }
