@@ -2,7 +2,7 @@
 import * as THREE from 'three/webgpu';
 import {
   EPSILON, color, deltaTime, dot, float, Fn, hash, If, instancedArray,
-  instanceIndex, Loop, mix, positionLocal, uniform, uint, vec3, TWO_PI,
+  instanceIndex, Loop, mix, positionLocal, uniform, uint, vec3, PI2,
 } from 'three/tsl';
 
 export type FieldFilter = 'all' | 'game' | 'ai' | 'web' | 'mobile' | 'tool';
@@ -99,7 +99,7 @@ export default class ParticleField {
       const u = hash(seed);
       const v = hash(seed.add(123).mul(2));
       const w = hash(seed.add(456).mul(3));
-      const theta = u.mul(TWO_PI);
+      const theta = u.mul(PI2);
       const phi = v.remap(0, 1, -1, 1).acos();
       const sinPhi = phi.sin();
       const r = radius.mul(w.pow(1 / 3));
