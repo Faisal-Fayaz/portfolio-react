@@ -4,9 +4,10 @@ import type { Project } from '../data/projects';
 interface ProjectCardProps {
   project: Project;
   onOpen: (id: string) => void;
+  onHover?: (id: string | null) => void;
 }
 
-export default function ProjectCard({ project, onOpen }: ProjectCardProps) {
+export default function ProjectCard({ project, onOpen, onHover }: ProjectCardProps) {
   const cardRef = useRef<HTMLElement>(null);
 
   const handleMove = (e: MouseEvent) => {
@@ -22,6 +23,11 @@ export default function ProjectCard({ project, onOpen }: ProjectCardProps) {
 
   const handleLeave = () => {
     if (cardRef.current) cardRef.current.style.transform = '';
+    onHover?.(null);
+  };
+
+  const handleEnter = () => {
+    onHover?.(project.id);
   };
 
   return (
@@ -29,6 +35,7 @@ export default function ProjectCard({ project, onOpen }: ProjectCardProps) {
       ref={cardRef}
       className="card"
       data-id={project.id}
+      onMouseEnter={handleEnter}
       onMouseMove={handleMove}
       onMouseLeave={handleLeave}
       onClick={() => onOpen(project.id)}

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { projects, type ProjectTag } from '../data/projects';
 import ProjectCard from './ProjectCard';
+import { fieldHandle } from './ParticleBackground';
 
 const FILTERS: { id: 'all' | ProjectTag; label: string }[] = [
   { id: 'all', label: 'all' },
@@ -27,6 +28,7 @@ export default function ProjectGrid({ onOpen, onFilter }: ProjectGridProps) {
   const handleFilter = (id: 'all' | ProjectTag) => {
     setFilter(id);
     onFilter(id);
+    fieldHandle.setFilter(id);
   };
 
   return (
@@ -55,7 +57,12 @@ export default function ProjectGrid({ onOpen, onFilter }: ProjectGridProps) {
 
       <div className="projects">
         {filtered.map((p) => (
-          <ProjectCard key={p.id} project={p} onOpen={onOpen} />
+          <ProjectCard
+            key={p.id}
+            project={p}
+            onOpen={onOpen}
+            onHover={(id) => fieldHandle.setFocus(id)}
+          />
         ))}
       </div>
     </section>
