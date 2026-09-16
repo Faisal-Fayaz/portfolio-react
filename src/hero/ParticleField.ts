@@ -1,12 +1,14 @@
 // @ts-nocheck
-import * as THREE from 'three/webgpu';
-import {
-  EPSILON, color, deltaTime, dot, float, Fn, hash, If, instancedArray,
-  instanceIndex, Loop, mix, positionLocal, uniform, uint, vec3, PI2,
-} from 'three/tsl';
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 
 export type FieldFilter = 'all' | 'game' | 'ai' | 'web' | 'mobile' | 'tool';
-const COUNT = 720;
+
+const COUNT = 420;
+const RADIUS = 0.11;
+const CONTACT = 0.24;
 
 function filterCode(filter: FieldFilter) {
   if (filter === 'game') return 1;
@@ -15,218 +17,190 @@ function filterCode(filter: FieldFilter) {
   return 0;
 }
 
+function hashId(id: string) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h + id.charCodeAt(i) * (i + 3)) % 12;
+  return h;
+}
+
 export default class ParticleField {
   constructor({ $canvas }) {
     this.$canvas = $canvas;
     this.playing = false;
+    this.filterMode = 0;
+    this.focusId = -1;
+    this.theme = 'dark';
     this.tick = this.tick.bind(this);
     this.resize = this.resize.bind(this);
+    this.onPointerMove = this.onPointerMove.bind(this);
   }
 
   async init() {
     this.setSizes();
-    this.renderer = new THREE.WebGPURenderer({ canvas: this.$canvas, antialias: true, alpha: true });
+    this.renderer = new THREE.WebGLRenderer({
+      canvas: this.$canvas,
+      antialias: true,
+      alpha: true,
+      powerPreference: 'high-performance',
+    });
     this.renderer.setClearColor(0x000000, 0);
     this.renderer.setPixelRatio(this.sizes.pixelRatio);
     this.renderer.setSize(this.sizes.width, this.sizes.height, false);
-    await this.renderer.init();
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.15;
+
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(35, this.sizes.width / Math.max(this.sizes.height, 1), 0.1, 80);
-    this.camera.position.set(0, 0, 16);
+    this.camera = new THREE.PerspectiveCamera(42, this.sizes.width / this.sizes.height, 0.1, 80);
+    this.camera.position.set(0, 0.2, 11);
     this.scene.add(this.camera);
+
     this.ambient = new THREE.AmbientLight(0xb8fff6, 0.55);
     this.scene.add(this.ambient);
-    this.dir = new THREE.DirectionalLight(0x7ef0e0, 0.65);
-    this.dir.position.set(4, 6, 8);
-    this.scene.add(this.dir);
-    this.setCursor();
-    this.setParticles();
+    this.key = new THREE.DirectionalLight(0xe8ffff, 1.1);
+    this.key.position.set(4, 6, 8);
+    this.scene.add(this.key);
+    this.fill = new THREE.PointLight(0x5ff2ff, 12, 18);
+    this.fill.position.set(-3, 1, 4);
+    this.scene.add(this.fill);
+
+    this.cursor = {
+      raycaster: new THREE.Raycaster(),
+      ndc: new THREE.Vector2(0, 0),
+      plane: new THREE.Plane(new THREE.Vector3(0, 0, 1), 0),
+      hit: new THREE.Vector3(),
+      pos: new THREE.Vector3(),
+      vel: new THREE.Vector3(),
+      sampled: false,
+    };
+    window.addEventListener('pointermove', this.onPointerMove, { passive: true });
+
+    this.positions = new Float32Array(COUNT * 3);
+    this.velocities = new Float32Array(COUNT * 3);
+    this.heat = new Float32Array(COUNT);
+    this.types = new Uint8Array(COUNT);
+    this.ids = new Uint8Array(COUNT);
+
+    for (let i = 0; i < COUNT; i++) {
+      const u = Math.random();
+      const v = Math.random();
+      const w = Math.random();
+      const theta = u * Math.PI * 2;
+      const phi = Math.acos(v * 2 - 1);
+      const r = 4.4 * Math.cbrt(w);
+      this.positions[i * 3] = Math.sin(theta) * Math.sin(phi) * r * 1.35;
+      this.positions[i * 3 + 1] = Math.cos(phi) * r * 0.72;
+      this.positions[i * 3 + 2] = Math.cos(theta) * Math.sin(phi) * r * 0.55;
+      this.types[i] = Math.floor(Math.random() * 3);
+      this.ids[i] = Math.floor(Math.random() * 12);
+    }
+
+    this.geometry = new THREE.IcosahedronGeometry(1, 1);
+    this.material = new THREE.MeshStandardMaterial({
+      color: 0xd7f6ff,
+      emissive: 0x5ff2ff,
+      emissiveIntensity: 0.15,
+      roughness: 0.35,
+      metalness: 0.15,
+      transparent: true,
+      opacity: 0.95,
+    });
+
+    this.mesh = new THREE.InstancedMesh(this.geometry, this.material, COUNT);
+    this.mesh.frustumCulled = false;
+    this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.dummy = new THREE.Object3D();
+    this.color = new THREE.Color();
+    this.baseSee = new THREE.Color(0x7eeadf);
+    this.basePlay = new THREE.Color(0x5ff2ff);
+    this.baseRemember = new THREE.Color(0xc4b5fd);
+    this.hot = new THREE.Color(0xffb454);
+    this.mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(COUNT * 3), 3);
+    this.scene.add(this.mesh);
+    this.writeInstances();
+
+    this.composer = new EffectComposer(this.renderer);
+    this.composer.addPass(new RenderPass(this.scene, this.camera));
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(this.sizes.width, this.sizes.height), 0.55, 0.7, 0.18);
+    this.composer.addPass(this.bloom);
+
+    this.clock = new THREE.Clock();
     this.resize();
     this.resizeObserver = new ResizeObserver(this.resize);
-    this.resizeObserver.observe(this.$canvas.parentElement || document.body);
+    this.resizeObserver.observe(document.documentElement);
+    this.setTheme(this.theme);
   }
 
   setSizes() {
-    const w = this.$canvas.parentElement?.clientWidth || window.innerWidth;
-    const h = this.$canvas.parentElement?.clientHeight || window.innerHeight;
-    this.sizes = { width: w, height: h, pixelRatio: Math.min(window.devicePixelRatio || 1, 2) };
+    this.sizes = {
+      width: window.innerWidth,
+      height: window.innerHeight,
+      pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+    };
   }
 
-  setCursor() {
-    this.cursor = {
-      raycaster: new THREE.Raycaster(),
-      ndc: new THREE.Vector2(),
-      plane: new THREE.Plane(this.camera.position.clone().normalize(), 0),
-      intersect: new THREE.Vector3(),
-      sampled: false,
-    };
-    this.onPointerMove = (event) => {
-      const box = this.$canvas.getBoundingClientRect();
-      this.cursor.ndc.x = ((event.clientX - box.left) / box.width) * 2 - 1;
-      this.cursor.ndc.y = -((event.clientY - box.top) / box.height) * 2 + 1;
-    };
-    window.addEventListener('pointermove', this.onPointerMove);
+  onPointerMove(event) {
+    this.cursor.ndc.x = (event.clientX / window.innerWidth) * 2 - 1;
+    this.cursor.ndc.y = -(event.clientY / window.innerHeight) * 2 + 1;
   }
 
-  setParticles() {
-    const count = COUNT;
-    this.positionsBuffer = instancedArray(count, 'vec3');
-    this.velocitiesBuffer = instancedArray(count, 'vec3');
-    this.heatBuffer = instancedArray(count, 'float');
-    this.typesBuffer = instancedArray(count, 'float');
-    this.idsBuffer = instancedArray(count, 'float');
-    this.radius = uniform(0.09);
-    this.contactRadius = uniform(0.12);
-    this.gravityStrength = uniform(0.018);
-    this.impactDamping = uniform(0.08);
-    this.generalDamping = uniform(0.45);
-    this.heatDamping = uniform(2.4);
-    this.heatImpactStrength = uniform(14);
-    this.cursorPosition = uniform(vec3());
-    this.cursorVelocity = uniform(vec3());
-    this.cursorRadius = uniform(2.1);
-    this.cursorStrength = uniform(0.05);
-    this.cursorHeatStrength = uniform(22);
-    this.filterMode = uniform(0);
-    this.focusId = uniform(-1);
-    this.themeMode = uniform(0);
-    this.seeColor = uniform(color(0x0f766e));
-    this.playColor = uniform(color(0x2dd4bf));
-    this.rememberColor = uniform(color(0x99f6e4));
-    this.hotColor = uniform(color(0x5eead4));
+  writeInstances() {
+    for (let i = 0; i < COUNT; i++) {
+      const inactive = this.isInactive(i);
+      const s = inactive ? RADIUS * 0.28 : RADIUS;
+      this.dummy.position.set(this.positions[i * 3], this.positions[i * 3 + 1], this.positions[i * 3 + 2]);
+      this.dummy.scale.setScalar(s);
+      this.dummy.updateMatrix();
+      this.mesh.setMatrixAt(i, this.dummy.matrix);
+      const t = this.types[i];
+      const base = t === 1 ? this.basePlay : t === 2 ? this.baseRemember : this.baseSee;
+      this.color.copy(base).lerp(this.hot, Math.min(1, this.heat[i]));
+      if (inactive) this.color.multiplyScalar(0.25);
+      this.mesh.setColorAt(i, this.color);
+    }
+    this.mesh.instanceMatrix.needsUpdate = true;
+    if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
+  }
 
-    const randomSphericalPosition = Fn(([seed = uint(0), radius = float(1)]) => {
-      const u = hash(seed);
-      const v = hash(seed.add(123).mul(2));
-      const w = hash(seed.add(456).mul(3));
-      const theta = u.mul(PI2);
-      const phi = v.remap(0, 1, -1, 1).acos();
-      const sinPhi = phi.sin();
-      const r = radius.mul(w.pow(1 / 3));
-      return vec3(theta.sin().mul(sinPhi), phi.cos(), theta.cos().mul(sinPhi)).mul(r);
-    });
-
-    const initCompute = Fn(() => {
-      const position = this.positionsBuffer.element(instanceIndex);
-      const type = this.typesBuffer.element(instanceIndex);
-      const id = this.idsBuffer.element(instanceIndex);
-      position.assign(randomSphericalPosition(instanceIndex, 4.2));
-      position.mulAssign(vec3(3.4, 2.2, 1.05));
-      type.assign(hash(instanceIndex.add(7)).mul(3).floor());
-      id.assign(hash(instanceIndex.add(99)).mul(12).floor());
-    })().compute(count);
-    this.renderer.compute(initCompute);
-
-    this.updateCompute = Fn(() => {
-      const dt = deltaTime.min(1 / 30);
-      const aPosition = this.positionsBuffer.element(instanceIndex);
-      const aVelocity = this.velocitiesBuffer.element(instanceIndex);
-      const aHeat = this.heatBuffer.element(instanceIndex);
-      const aType = this.typesBuffer.element(instanceIndex);
-      const aId = this.idsBuffer.element(instanceIndex);
-      const cursorDistance = aPosition.distance(this.cursorPosition);
-      const ratio = cursorDistance.div(this.cursorRadius).remap(0.45, 1).oneMinus().max(0);
-      const pushed = this.cursorVelocity.mul(ratio).mul(this.cursorStrength);
-      aVelocity.addAssign(pushed);
-      aHeat.addAssign(pushed.length().mul(this.cursorHeatStrength));
-      const toCenter = aPosition.negate().normalize();
-      aVelocity.addAssign(toCenter.mul(this.gravityStrength).mul(dt));
-      If(this.focusId.greaterThanEqual(0).and(aId.sub(this.focusId).abs().lessThan(0.5)), () => {
-        aHeat.addAssign(float(0.045));
-        aVelocity.addAssign(toCenter.mul(-0.004));
-      });
-      const mode = this.filterMode;
-      const inactive = mode.greaterThan(0.5).and(
-        mode.equal(1).and(aType.notEqual(1))
-          .or(mode.equal(2).and(aType.notEqual(0)))
-          .or(mode.equal(3).and(aType.notEqual(2))),
-      );
-      If(inactive, () => {
-        aVelocity.mulAssign(0.82);
-        aHeat.mulAssign(0.85);
-      });
-      Loop({ start: instanceIndex.add(1), end: instanceIndex.add(28), condition: '<', name: 'i' }, ({ i }) => {
-        const other = i.mod(count);
-        const bPosition = this.positionsBuffer.element(other);
-        const bVelocity = this.velocitiesBuffer.element(other);
-        const bHeat = this.heatBuffer.element(other);
-        const delta = bPosition.sub(aPosition);
-        const distance = delta.length();
-        const direction = delta.div(distance.max(EPSILON));
-        const radius2 = this.contactRadius.mul(2);
-        If(distance.lessThan(radius2), () => {
-          const avoidance = direction.mul(radius2.sub(distance).div(2));
-          aPosition.subAssign(avoidance);
-          bPosition.addAssign(avoidance);
-          const impactStrength = dot(aVelocity.sub(bVelocity), direction);
-          const impactVelocity = direction.mul(impactStrength).mul(this.impactDamping.oneMinus());
-          aVelocity.subAssign(impactVelocity);
-          bVelocity.addAssign(impactVelocity);
-          const heat = impactStrength.sub(0.01).max(0).mul(this.heatImpactStrength);
-          aHeat.addAssign(heat);
-          bHeat.addAssign(heat);
-        });
-      });
-      aPosition.addAssign(aVelocity);
-      aVelocity.mulAssign(this.generalDamping.mul(dt).oneMinus());
-      aHeat.mulAssign(this.heatDamping.mul(dt).oneMinus());
-    })().compute(count);
-
-    this.geometry = new THREE.IcosahedronGeometry(1, 1);
-    this.material = new THREE.MeshLambertNodeMaterial({ transparent: true, opacity: 0.92 });
-    this.material.positionNode = Fn(() => {
-      const aType = this.typesBuffer.element(instanceIndex);
-      const mode = this.filterMode;
-      const inactive = mode.greaterThan(0.5).and(
-        mode.equal(1).and(aType.notEqual(1))
-          .or(mode.equal(2).and(aType.notEqual(0)))
-          .or(mode.equal(3).and(aType.notEqual(2))),
-      );
-      const scale = mix(this.radius, this.radius.mul(0.22), inactive.select(1, 0));
-      positionLocal.mulAssign(scale);
-      positionLocal.addAssign(this.positionsBuffer.element(instanceIndex));
-      return positionLocal;
-    })();
-    const heat = this.heatBuffer.element(instanceIndex);
-    const aType = this.typesBuffer.element(instanceIndex);
-    const base = mix(this.seeColor, mix(this.playColor, this.rememberColor, aType.greaterThan(1.5).select(1, 0)), aType.greaterThan(0.5).select(1, 0));
-    this.material.colorNode = mix(base, this.hotColor, heat.saturate());
-    this.material.emissiveNode = this.hotColor.mul(heat.saturate().mul(1.8));
-    this.mesh = new THREE.Mesh(this.geometry, this.material);
-    this.mesh.frustumCulled = false;
-    this.mesh.count = count;
-    this.scene.add(this.mesh);
+  isInactive(i) {
+    if (this.filterMode === 0) return false;
+    if (this.filterMode === 1) return this.types[i] !== 1;
+    if (this.filterMode === 2) return this.types[i] !== 0;
+    return this.types[i] !== 2;
   }
 
   setFilter(filter) {
-    if (this.filterMode) this.filterMode.value = filterCode(filter);
+    this.filterMode = filterCode(filter);
   }
 
   setFocus(projectId) {
-    if (!this.focusId) return;
-    if (!projectId) { this.focusId.value = -1; return; }
-    let hashVal = 0;
-    for (let i = 0; i < projectId.length; i++) hashVal = (hashVal + projectId.charCodeAt(i) * (i + 3)) % 12;
-    this.focusId.value = hashVal;
+    this.focusId = projectId ? hashId(projectId) : -1;
   }
 
   setTheme(theme) {
-    if (!this.themeMode) return;
-    this.themeMode.value = theme === 'dark' ? 1 : 0;
+    this.theme = theme;
+    if (!this.material) return;
     if (theme === 'dark') {
-      this.seeColor.value.set(0x5eead4);
-      this.playColor.value.set(0x2dd4bf);
-      this.rememberColor.value.set(0xccfbf1);
-      this.hotColor.value.set(0xa5f3fc);
-      this.ambient.intensity = 0.28;
-      this.dir.intensity = 0.4;
+      this.baseSee.set(0x7eeadf);
+      this.basePlay.set(0x5ff2ff);
+      this.baseRemember.set(0xe9d5ff);
+      this.hot.set(0xffb454);
+      this.material.color.set(0xe8f7ff);
+      this.material.emissive.set(0x5ff2ff);
+      this.ambient.intensity = 0.35;
+      this.key.intensity = 0.9;
+      this.fill.intensity = 16;
+      if (this.bloom) { this.bloom.strength = 0.7; this.bloom.threshold = 0.12; }
     } else {
-      this.seeColor.value.set(0x0f766e);
-      this.playColor.value.set(0x14b8a6);
-      this.rememberColor.value.set(0x5eead4);
-      this.hotColor.value.set(0x2dd4bf);
-      this.ambient.intensity = 0.55;
-      this.dir.intensity = 0.65;
+      this.baseSee.set(0x0f766e);
+      this.basePlay.set(0x0891b2);
+      this.baseRemember.set(0x6d28d9);
+      this.hot.set(0xea580c);
+      this.material.color.set(0x164e63);
+      this.material.emissive.set(0x155e75);
+      this.ambient.intensity = 0.7;
+      this.key.intensity = 1.05;
+      this.fill.intensity = 8;
+      if (this.bloom) { this.bloom.strength = 0.28; this.bloom.threshold = 0.35; }
     }
   }
 
@@ -234,6 +208,7 @@ export default class ParticleField {
     if (this.playing) return;
     this.playing = true;
     this.cursor.sampled = false;
+    this.clock.getDelta();
     this.renderer.setAnimationLoop(this.tick);
   }
 
@@ -245,36 +220,109 @@ export default class ParticleField {
 
   resize() {
     this.setSizes();
-    if (!this.sizes.width || !this.sizes.height || !this.renderer) return;
+    if (!this.renderer || !this.sizes.width || !this.sizes.height) return;
     this.camera.aspect = this.sizes.width / this.sizes.height;
     this.camera.updateProjectionMatrix();
     this.renderer.setPixelRatio(this.sizes.pixelRatio);
     this.renderer.setSize(this.sizes.width, this.sizes.height, false);
+    this.composer?.setSize(this.sizes.width, this.sizes.height);
+    this.bloom?.setSize(this.sizes.width, this.sizes.height);
   }
 
   tick() {
+    const dt = Math.min(this.clock.getDelta(), 1 / 30);
     this.cursor.raycaster.setFromCamera(this.cursor.ndc, this.camera);
-    this.cursor.raycaster.ray.intersectPlane(this.cursor.plane, this.cursor.intersect);
-    if (this.cursor.sampled) this.cursorVelocity.value.copy(this.cursor.intersect).sub(this.cursorPosition.value);
-    else this.cursorVelocity.value.set(0, 0, 0);
-    this.cursorPosition.value.copy(this.cursor.intersect);
+    this.cursor.raycaster.ray.intersectPlane(this.cursor.plane, this.cursor.hit);
+    if (this.cursor.sampled) this.cursor.vel.copy(this.cursor.hit).sub(this.cursor.pos);
+    else this.cursor.vel.set(0, 0, 0);
+    this.cursor.pos.copy(this.cursor.hit);
     this.cursor.sampled = true;
-    this.renderer.compute(this.updateCompute);
-    this.renderer.render(this.scene, this.camera);
+
+    const cursorR = 2.15;
+    const cursorR2 = cursorR * cursorR;
+
+    for (let i = 0; i < COUNT; i++) {
+      const ix = i * 3;
+      let x = this.positions[ix];
+      let y = this.positions[ix + 1];
+      let z = this.positions[ix + 2];
+      let vx = this.velocities[ix];
+      let vy = this.velocities[ix + 1];
+      let vz = this.velocities[ix + 2];
+
+      const dx = x - this.cursor.pos.x;
+      const dy = y - this.cursor.pos.y;
+      const dz = z - this.cursor.pos.z;
+      const d2 = dx * dx + dy * dy + dz * dz;
+      if (d2 < cursorR2) {
+        const d = Math.sqrt(d2) || 0.001;
+        const ratio = Math.max(0, 1 - Math.max(0, d / cursorR - 0.45) / 0.55);
+        vx += this.cursor.vel.x * ratio * 0.55;
+        vy += this.cursor.vel.y * ratio * 0.55;
+        vz += this.cursor.vel.z * ratio * 0.55;
+        this.heat[i] += Math.hypot(this.cursor.vel.x, this.cursor.vel.y, this.cursor.vel.z) * ratio * 4.2;
+      }
+
+      const len = Math.hypot(x, y, z) || 1;
+      vx -= (x / len) * 0.55 * dt;
+      vy -= (y / len) * 0.55 * dt;
+      vz -= (z / len) * 0.55 * dt;
+
+      if (this.focusId >= 0 && this.ids[i] === this.focusId) {
+        this.heat[i] += 0.04;
+        vx -= (x / len) * -0.15 * dt;
+      }
+
+      if (this.isInactive(i)) {
+        vx *= 0.84; vy *= 0.84; vz *= 0.84;
+        this.heat[i] *= 0.86;
+      }
+
+      const end = Math.min(COUNT, i + 18);
+      for (let j = i + 1; j < end; j++) {
+        const jx = j * 3;
+        const ox = this.positions[jx] - x;
+        const oy = this.positions[jx + 1] - y;
+        const oz = this.positions[jx + 2] - z;
+        const dist = Math.hypot(ox, oy, oz) || 0.0001;
+        if (dist < CONTACT) {
+          const nx = ox / dist, ny = oy / dist, nz = oz / dist;
+          const overlap = (CONTACT - dist) * 0.5;
+          x -= nx * overlap; y -= ny * overlap; z -= nz * overlap;
+          this.positions[jx] += nx * overlap;
+          this.positions[jx + 1] += ny * overlap;
+          this.positions[jx + 2] += nz * overlap;
+          const rel = (vx - this.velocities[jx]) * nx + (vy - this.velocities[jx + 1]) * ny + (vz - this.velocities[jx + 2]) * nz;
+          const bounce = rel * 0.92;
+          vx -= nx * bounce; vy -= ny * bounce; vz -= nz * bounce;
+          this.velocities[jx] += nx * bounce;
+          this.velocities[jx + 1] += ny * bounce;
+          this.velocities[jx + 2] += nz * bounce;
+          const impact = Math.max(0, rel - 0.01) * 8;
+          this.heat[i] += impact;
+          this.heat[j] += impact;
+        }
+      }
+
+      x += vx; y += vy; z += vz;
+      const damp = 1 - 0.55 * dt;
+      vx *= damp; vy *= damp; vz *= damp;
+      this.heat[i] *= 1 - 2.2 * dt;
+      this.positions[ix] = x; this.positions[ix + 1] = y; this.positions[ix + 2] = z;
+      this.velocities[ix] = vx; this.velocities[ix + 1] = vy; this.velocities[ix + 2] = vz;
+    }
+
+    this.writeInstances();
+    this.composer.render();
   }
 
   destroy() {
     this.pause();
     this.resizeObserver?.disconnect();
     window.removeEventListener('pointermove', this.onPointerMove);
-    if (this.mesh) {
-      this.scene.remove(this.mesh);
-      this.geometry.dispose();
-      this.material.dispose();
-    }
-    for (const buffer of [this.positionsBuffer, this.velocitiesBuffer, this.heatBuffer, this.typesBuffer, this.idsBuffer]) {
-      buffer?.value?.dispose?.();
-    }
+    this.geometry?.dispose();
+    this.material?.dispose();
+    this.composer?.dispose();
     this.renderer?.dispose();
   }
 }
