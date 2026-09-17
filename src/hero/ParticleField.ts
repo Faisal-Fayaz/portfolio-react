@@ -7,9 +7,9 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 export type FieldFilter = 'all' | 'game' | 'ai' | 'web' | 'mobile' | 'tool';
 
 const RING = [
-  { count: 28, radius: 2.15, tiltX: 0.55, tiltZ: 0.18, speed: 0.18, type: 0, color: 0x5ff2ff },
-  { count: 36, radius: 3.05, tiltX: -0.4, tiltZ: 0.5, speed: -0.13, type: 1, color: 0xff4fd8 },
-  { count: 22, radius: 3.85, tiltX: 1.05, tiltZ: -0.25, speed: 0.09, type: 2, color: 0xffb454 },
+  { count: 28, radius: 2.15, tiltX: 0.55, tiltZ: 0.18, speed: 0.18, type: 0, dark: 0x5ff2ff, light: 0x0f766e },
+  { count: 36, radius: 3.05, tiltX: -0.4, tiltZ: 0.5, speed: -0.13, type: 1, dark: 0xff4fd8, light: 0xa21caf },
+  { count: 22, radius: 3.85, tiltX: 1.05, tiltZ: -0.25, speed: 0.09, type: 2, dark: 0xffb454, light: 0xb45309 },
 ];
 
 function filterCode(filter) {
@@ -26,6 +26,7 @@ export default class ParticleField {
     this.filterMode = 0;
     this.focusId = -1;
     this.theme = 'dark';
+    this.useBloom = true;
     this.tick = this.tick.bind(this);
     this.resize = this.resize.bind(this);
     this.onPointerMove = this.onPointerMove.bind(this);
@@ -49,10 +50,11 @@ export default class ParticleField {
     this.camera = new THREE.PerspectiveCamera(36, this.sizes.width / this.sizes.height, 0.1, 60);
     this.camera.position.set(0, 0.15, 10);
     this.scene.add(this.camera);
-    this.scene.add(new THREE.AmbientLight(0x8fd4ff, 0.35));
-    const key = new THREE.DirectionalLight(0xffffff, 1.2);
-    key.position.set(3, 4, 6);
-    this.scene.add(key);
+    this.ambient = new THREE.AmbientLight(0x8fd4ff, 0.35);
+    this.scene.add(this.ambient);
+    this.key = new THREE.DirectionalLight(0xffffff, 1.2);
+    this.key.position.set(3, 4, 6);
+    this.scene.add(this.key);
     this.rim = new THREE.PointLight(0x5ff2ff, 18, 16);
     this.rim.position.set(-2, 1.4, 3);
     this.scene.add(this.rim);
@@ -90,12 +92,12 @@ export default class ParticleField {
       this.root.add(group);
       const torus = new THREE.Mesh(
         new THREE.TorusGeometry(spec.radius, 0.012, 8, 96),
-        new THREE.MeshBasicMaterial({ color: spec.color, transparent: true, opacity: 0.28 }),
+        new THREE.MeshBasicMaterial({ color: spec.dark, transparent: true, opacity: 0.28 }),
       );
       group.add(torus);
       const mesh = new THREE.InstancedMesh(nodeGeo, new THREE.MeshStandardMaterial({
-        color: spec.color,
-        emissive: spec.color,
+        color: spec.dark,
+        emissive: spec.dark,
         emissiveIntensity: 0.8,
         roughness: 0.3,
         metalness: 0.4,
@@ -161,6 +163,10 @@ export default class ParticleField {
     this.cursor.ndc.y = -(event.clientY / window.innerHeight) * 2 + 1;
   }
 
+  ringColor(spec) {
+    return this.theme === 'light' ? spec.light : spec.dark;
+  }
+
   isInactive(type) {
     if (this.filterMode === 0) return false;
     if (this.filterMode === 1) return type !== 1;
@@ -181,15 +187,40 @@ export default class ParticleField {
     this.theme = theme;
     if (!this.bloom) return;
     if (theme === 'dark') {
+      this.useBloom = true;
+      this.renderer.setClearColor(0x000000, 0);
       this.bloom.strength = 0.55;
       this.bloom.threshold = 0.16;
+      this.rim.color.set(0x5ff2ff);
       this.rim.intensity = 18;
+      this.ambient.intensity = 0.35;
+      this.core.material.color.set(0x07212a);
+      this.core.material.emissive.set(0x5ff2ff);
       this.core.material.emissiveIntensity = 0.65;
+      this.coreWire.material.color.set(0x5ff2ff);
+      this.coreWire.material.opacity = 0.35;
+      this.spokes.material.color.set(0x5ff2ff);
+      this.hot.set(0xffffff);
     } else {
-      this.bloom.strength = 0.22;
-      this.bloom.threshold = 0.4;
-      this.rim.intensity = 8;
-      this.core.material.emissiveIntensity = 0.35;
+      this.useBloom = false;
+      this.renderer.setClearColor(0xf0f5fa, 0);
+      this.rim.color.set(0x0f766e);
+      this.rim.intensity = 4;
+      this.ambient.intensity = 0.7;
+      this.core.material.color.set(0xd1fae5);
+      this.core.material.emissive.set(0x0f766e);
+      this.core.material.emissiveIntensity = 0.18;
+      this.coreWire.material.color.set(0x0f766e);
+      this.coreWire.material.opacity = 0.4;
+      this.spokes.material.color.set(0x0f766e);
+      this.hot.set(0x134e4a);
+    }
+    for (const ring of this.ringGroups) {
+      const c = this.ringColor(ring.spec);
+      ring.torus.material.color.setHex(c);
+      ring.mesh.material.color.setHex(c);
+      ring.mesh.material.emissive.setHex(c);
+      ring.mesh.material.emissiveIntensity = theme === 'dark' ? 0.8 : 0.15;
     }
   }
 
@@ -235,10 +266,12 @@ export default class ParticleField {
 
     const tmp = new THREE.Vector3();
     const hottest = [];
+    const isLight = this.theme === 'light';
     for (const ring of this.ringGroups) {
       const inactive = this.isInactive(ring.spec.type);
       ring.group.rotation.y += ring.spec.speed * dt;
-      ring.torus.material.opacity = inactive ? 0.05 : 0.32;
+      ring.torus.material.opacity = inactive ? 0.04 : (isLight ? 0.45 : 0.32);
+      const baseHex = this.ringColor(ring.spec);
       for (let i = 0; i < ring.items.length; i++) {
         const n = ring.items[i];
         const x = Math.cos(n.angle) * n.radius;
@@ -257,8 +290,8 @@ export default class ParticleField {
         this.dummy.rotation.set(n.angle, this.elapsed * 0.4, 0);
         this.dummy.updateMatrix();
         ring.mesh.setMatrixAt(i, this.dummy.matrix);
-        this.color.setHex(ring.spec.color).lerp(this.hot, Math.min(1, n.heat));
-        if (inactive) this.color.multiplyScalar(0.18);
+        this.color.setHex(baseHex).lerp(this.hot, Math.min(1, n.heat) * (isLight ? 0.35 : 1));
+        if (inactive) this.color.multiplyScalar(isLight ? 0.35 : 0.18);
         ring.mesh.setColorAt(i, this.color);
         if (!inactive && n.heat > 0.35) hottest.push({ x: tmp.x, y: tmp.y, z: tmp.z, heat: n.heat });
       }
@@ -284,8 +317,10 @@ export default class ParticleField {
       }
     }
     this.spokeGeo.attributes.position.needsUpdate = true;
-    this.spokes.material.opacity = 0.12 + Math.min(0.35, hottest.length * 0.03);
-    this.composer.render();
+    this.spokes.material.opacity = isLight ? 0.2 : 0.12 + Math.min(0.35, hottest.length * 0.03);
+
+    if (this.useBloom) this.composer.render();
+    else this.renderer.render(this.scene, this.camera);
   }
 
   destroy() {
