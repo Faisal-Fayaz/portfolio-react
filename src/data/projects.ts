@@ -231,42 +231,6 @@ export const projects: Project[] = [
     repo: 'https://github.com/Faisal-Fayaz/signal-speech-to-text',
     lang: 'JavaScript / Python',
   },
-  {
-    id: 'sky-duel',
-    name: 'Sky Duel',
-    icon: '✈️',
-    tags: ['game', 'web'],
-    short: 'Multiplayer aerial combat. Vite/TypeScript client + Colyseus authoritative game server.',
-    long: 'A multiplayer dogfight prototype with dedicated Colyseus rooms, flight controller, weapon system, effects and networked state.',
-    highlights: [
-      'Colyseus multiplayer server',
-      'Custom flight & camera controllers',
-      'Object pooling & effects manager',
-      'Client/server split architecture',
-    ],
-    demo: null,
-    repo: 'https://github.com/Faisal-Fayaz/sky-duel',
-    lang: 'TypeScript',
-  },
-  {
-    id: 'dream-architect',
-    name: 'Dream Architect',
-    icon: '🌌',
-    tags: ['game', 'web'],
-    short:
-      'Multiplayer emotional sandbox. Place memories into a shared 3D dream world and watch the mood shift.',
-    long: 'Vertical-slice demo of a collaborative dream space. EmotionField reacts to placed memories (fog, light, intensity). Live WebSocket multiplayer with interest management and persistence.',
-    highlights: [
-      'Three.js / WebGL2 scene',
-      'Live multiplayer via WebSocket',
-      'Emotion-driven environment',
-      'AOI interest management on server',
-    ],
-    demo: null,
-    repo: 'https://github.com/Faisal-Fayaz/dream-architect',
-    lang: 'TypeScript',
-    private: true,
-  },
 ];
 
 export const skills = [
@@ -289,7 +253,6 @@ export const skills = [
   'llama.cpp',
   'PEFT / QLoRA',
   'MCP',
-  'Colyseus',
   'Expo / React Native',
   'Zustand',
   'PostgreSQL',
