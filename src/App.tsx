@@ -93,7 +93,7 @@ export default function App() {
           <a href={githubStats.profileUrl} target="_blank" rel="noopener noreferrer">
             github.com/{githubStats.username}
           </a>{' '}
-          · {githubStats.asOf.replace(/-/, ' ').replace('-', ' ').replace('2026-', 'Sep ')}
+          · Sep 2026
         </footer>
       </div>
       <Modal project={activeProject} onClose={handleClose} />
