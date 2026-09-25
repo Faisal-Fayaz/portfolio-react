@@ -3,8 +3,10 @@ import { githubStats } from '../data/github';
 
 const PHRASES = [
   'AI/ML + Full-stack · India',
+  'Local-first terminal agents…',
   'Building offline vision models…',
   'Neon arcade games in the browser…',
+  'C++ physics labs that actually measure F=ma…',
   '3D system-design flight simulators…',
   'Local AI that never leaves your machine…',
   'Contributing upstream to LLM tooling…',
@@ -54,9 +56,10 @@ export default function Hero() {
           <span className="cursor" />
         </div>
         <p className="hero-desc">
-          Full-stack + AI/ML engineer. I ship neon arcade games, on-device vision models, 3D
-          system-design simulators, and private local AI tools — and send the hard fixes back
-          upstream. Usually TypeScript, React, Three.js, FastAPI and a dash of TensorFlow Lite.
+          Full-stack + AI/ML engineer. I ship local-first agents, neon arcade games, on-device
+          vision models, C++ teaching labs, and 3D system-design simulators — and send the hard
+          fixes back upstream. Usually TypeScript, React, Three.js, FastAPI, Python and a dash of
+          TensorFlow Lite.
         </p>
         <div className="cta-row">
           <a className="btn btn-primary" href="#projects">

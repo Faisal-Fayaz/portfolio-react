@@ -27,7 +27,7 @@ export default function AboutTerminal() {
           <div className="t-line t-out">
             Teach machines to grade, guide, and occasionally recognize digits.
             <br />
-            Ship playful systems people can actually run in the browser or offline.
+            Ship playful systems people can actually run in the browser, the terminal, or offline.
             <br />
             Read the real implementation, write the test, send the fix upstream.
           </div>
@@ -35,15 +35,15 @@ export default function AboutTerminal() {
             <span className="t-prompt">$</span> <span className="t-cmd">ls interests/</span>
           </div>
           <div className="t-line t-out">
+            <span className="t-hl">local-agents/</span>
+            &nbsp;&nbsp;
             <span className="t-hl">browser-games/</span>
             &nbsp;&nbsp;
             <span className="t-hl">on-device-ml/</span>
             &nbsp;&nbsp;
+            <span className="t-hl">physics-sims/</span>
+            &nbsp;&nbsp;
             <span className="t-hl">system-design-sims/</span>
-            &nbsp;&nbsp;
-            <span className="t-hl">local-ai/</span>
-            &nbsp;&nbsp;
-            <span className="t-hl">3d-web/</span>
             &nbsp;&nbsp;
             <span className="t-hl">upstream/</span>
           </div>
@@ -51,8 +51,8 @@ export default function AboutTerminal() {
             <span className="t-prompt">$</span> <span className="t-cmd">echo $STATUS</span>
           </div>
           <div className="t-line t-out">
-            16 public repos · 7 merged PRs into Soup (6.2k★ LLM fine-tune CLI). Still shipping
-            LeafScan and polishing IONSTORM.
+            19 public repos · 7 merged PRs into Soup (6.2k★ LLM fine-tune CLI). Shipping Sidekick
+            (local terminal agent) and Physics Lab.
           </div>
         </div>
       </div>

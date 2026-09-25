@@ -1,13 +1,13 @@
 export const githubStats = {
-  username: 'Faisal01011',
-  profileUrl: 'https://github.com/Faisal01011',
-  publicRepos: 16,
-  followers: 5,
-  following: 4,
+  username: 'Faisal-Fayaz',
+  profileUrl: 'https://github.com/Faisal-Fayaz',
+  publicRepos: 19,
+  followers: 4,
+  following: 3,
   liveDemos: 5,
   mergedUpstreamPrs: 7,
   openUpstreamPrs: 0,
-  asOf: '2026-09-13',
+  asOf: '2026-09-25',
 };
 
 export type ContributionStatus = 'merged' | 'open' | 'closed';
