@@ -16,6 +16,42 @@ export interface Project {
 
 export const projects: Project[] = [
   {
+    id: 'sidekick',
+    name: 'Sidekick',
+    icon: '🤖',
+    tags: ['tool', 'ai'],
+    short:
+      'Local-first terminal companion — chat, voice, and 17 tools on your hardware. No cloud account required.',
+    long: 'A TUI + CLI agent you can talk to. Runs fully offline with Ollama, transcribes voice on-device with faster-whisper, and grounds answers in your real system instead of guessing. 17 tools, MCP server, FTS5 memory, 427 tests. Published on PyPI as sidekick-agent (`sk`).',
+    highlights: [
+      'Offline-first: Ollama + local faster-whisper, no API bill by default',
+      '17 tools with SSRF guards, write blocklists, and plan review',
+      'Textual TUI, voice input, MCP stdio server',
+      '427-test suite including prompt-regression evals',
+    ],
+    demo: null,
+    repo: 'https://github.com/Faisal-Fayaz/sidekick',
+    lang: 'Python',
+  },
+  {
+    id: 'physics-lab',
+    name: 'Physics Lab',
+    icon: '⚛️',
+    tags: ['tool'],
+    short:
+      'C++ / SFML teaching lab: 17 scenes, 24 lessons, quiz, and live instruments that measure F = ma — not animate it.',
+    long: 'Real-time physics teaching lab. Every mass moves by solving F = ma at 240 Hz (semi-implicit Euler + constraint projection). Periods, energy, range and momentum are measured live and checked against textbook formulas. 17 interactive scenes from Hooke to Kepler to E&M, plus 24 guided lessons and a 27-question quiz.',
+    highlights: [
+      'Fixed 240 Hz timestep with constraint substeps',
+      '17 scenes + 24 lessons + quiz / exam / worksheet modes',
+      'Live scope, energy bars, measuring tape, CSV export',
+      'Verified against textbook formulas via --learn-test',
+    ],
+    demo: null,
+    repo: 'https://github.com/Faisal-Fayaz/physics-lab',
+    lang: 'C++',
+  },
+  {
     id: 'autoapply',
     name: 'AutoApply',
     icon: '📄',
@@ -30,7 +66,7 @@ export const projects: Project[] = [
       'Accuracy dashboard across four ATS platforms',
     ],
     demo: null,
-    repo: 'https://github.com/Faisal01011/autoapply',
+    repo: 'https://github.com/Faisal-Fayaz/autoapply',
     lang: 'Python / JavaScript',
   },
   {
@@ -48,7 +84,7 @@ export const projects: Project[] = [
       'Preserves wrapped-command exit codes',
     ],
     demo: null,
-    repo: 'https://github.com/Faisal01011/repropack-cli',
+    repo: 'https://github.com/Faisal-Fayaz/repropack-cli',
     lang: 'TypeScript',
   },
   {
@@ -66,7 +102,7 @@ export const projects: Project[] = [
       'CLI + GUI + smoke verification paths',
     ],
     demo: null,
-    repo: 'https://github.com/Faisal01011/llama-autotune',
+    repo: 'https://github.com/Faisal-Fayaz/llama-autotune',
     lang: 'C++',
   },
   {
@@ -84,7 +120,7 @@ export const projects: Project[] = [
       'FastAPI + React + D3',
     ],
     demo: null,
-    repo: 'https://github.com/Faisal01011/codebase-xray',
+    repo: 'https://github.com/Faisal-Fayaz/codebase-xray',
     lang: 'TypeScript / Python',
   },
   {
@@ -102,7 +138,7 @@ export const projects: Project[] = [
       'Mobile + desktop controls, installable PWA',
     ],
     demo: 'https://ionstorm.vercel.app',
-    repo: 'https://github.com/Faisal01011/IONSTORM',
+    repo: 'https://github.com/Faisal-Fayaz/IONSTORM',
     lang: 'JavaScript',
   },
   {
@@ -120,7 +156,7 @@ export const projects: Project[] = [
       'Live at wild-roads.vercel.app',
     ],
     demo: 'https://wild-roads.vercel.app',
-    repo: 'https://github.com/Faisal01011/wild-roads',
+    repo: 'https://github.com/Faisal-Fayaz/wild-roads',
     lang: 'TypeScript',
   },
   {
@@ -138,7 +174,7 @@ export const projects: Project[] = [
       'Failure injection & architecture export',
     ],
     demo: 'https://system-design-simulator-flax.vercel.app',
-    repo: 'https://github.com/Faisal01011/system-design-simulator',
+    repo: 'https://github.com/Faisal-Fayaz/system-design-simulator',
     lang: 'TypeScript',
   },
   {
@@ -156,7 +192,7 @@ export const projects: Project[] = [
       'Built for field use, not just demos',
     ],
     demo: null,
-    repo: 'https://github.com/Faisal01011/Leaf-Scan',
+    repo: 'https://github.com/Faisal-Fayaz/Leaf-Scan',
     lang: 'TypeScript',
   },
   {
@@ -174,7 +210,7 @@ export const projects: Project[] = [
       'Async processing pipeline',
     ],
     demo: null,
-    repo: 'https://github.com/Faisal01011/ecomind',
+    repo: 'https://github.com/Faisal-Fayaz/ecomind',
     lang: 'TypeScript / Python',
   },
   {
@@ -192,7 +228,7 @@ export const projects: Project[] = [
       'Live demo available',
     ],
     demo: 'https://signal-speech-to-text.vercel.app',
-    repo: 'https://github.com/Faisal01011/signal-speech-to-text',
+    repo: 'https://github.com/Faisal-Fayaz/signal-speech-to-text',
     lang: 'JavaScript / Python',
   },
   {
@@ -209,7 +245,7 @@ export const projects: Project[] = [
       'Client/server split architecture',
     ],
     demo: null,
-    repo: 'https://github.com/Faisal01011/sky-duel',
+    repo: 'https://github.com/Faisal-Fayaz/sky-duel',
     lang: 'TypeScript',
   },
   {
@@ -227,7 +263,7 @@ export const projects: Project[] = [
       'AOI interest management on server',
     ],
     demo: null,
-    repo: 'https://github.com/Faisal01011/dream-architect',
+    repo: 'https://github.com/Faisal-Fayaz/dream-architect',
     lang: 'TypeScript',
     private: true,
   },
@@ -236,6 +272,7 @@ export const projects: Project[] = [
 export const skills = [
   'TypeScript',
   'JavaScript',
+  'Python',
   'C++',
   'React',
   'Vite',
@@ -244,12 +281,14 @@ export const skills = [
   'WebGPU / WebGL',
   'Node.js',
   'FastAPI',
-  'Python',
+  'Textual',
+  'SFML',
   'TensorFlow Lite',
   'Faster-Whisper',
   'Ollama / Llama',
   'llama.cpp',
   'PEFT / QLoRA',
+  'MCP',
   'Colyseus',
   'Expo / React Native',
   'Zustand',

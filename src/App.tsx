@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { projects } from './data/projects';
+import { githubStats } from './data/github';
 import { useTheme } from './hooks/useTheme';
 import { useScore } from './hooks/useScore';
 import ParticleBackground from './components/ParticleBackground';
@@ -89,10 +90,10 @@ export default function App() {
         <ContactForm onSuccess={markContactSent} showToast={showToast} />
         <footer>
           Built with curiosity · stats synced from{' '}
-          <a href="https://github.com/Faisal01011" target="_blank" rel="noopener noreferrer">
-            github.com/Faisal01011
+          <a href={githubStats.profileUrl} target="_blank" rel="noopener noreferrer">
+            github.com/{githubStats.username}
           </a>{' '}
-          · Sep 2026
+          · {githubStats.asOf.replace(/-/, ' ').replace('-', ' ').replace('2026-', 'Sep ')}
         </footer>
       </div>
       <Modal project={activeProject} onClose={handleClose} />

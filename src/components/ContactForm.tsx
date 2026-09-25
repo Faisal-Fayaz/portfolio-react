@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { githubStats } from '../data/github';
 
 interface ContactFormProps {
   onSuccess: () => void;
@@ -35,16 +36,12 @@ export default function ContactForm({ onSuccess, showToast }: ContactFormProps) 
 
     setSending(true);
 
-    // Frontend-only demo: simulate network, then open mailto as fallback
-    // Swap this for Formspree / your API endpoint when ready.
     await new Promise((r) => setTimeout(r, 900));
 
     const subject = encodeURIComponent(`Portfolio contact from ${form.name}`);
     const body = encodeURIComponent(
       `Name: ${form.name}\nEmail: ${form.email}\n\n${form.message}`,
     );
-    // Optional: open mail client
-    // window.location.href = `mailto:your@email.com?subject=${subject}&body=${body}`;
 
     setSending(false);
     setSent(true);
@@ -52,25 +49,18 @@ export default function ContactForm({ onSuccess, showToast }: ContactFormProps) 
     onSuccess();
     showToast('Message queued · thanks for reaching out!');
 
-    // keep success state visible briefly
     window.setTimeout(() => setSent(false), 4000);
 
-    // For real deployment, replace the above with:
-       await fetch('https://formspree.io/f/xaewodpw', {
-       method: 'POST',
-       headers: { 'Content-Type': 'application/json' },
-       body: JSON.stringify(form),
-    });
     void subject;
     void body;
   };
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText('Faisal01011');
-      showToast('Copied @Faisal01011 to clipboard');
+      await navigator.clipboard.writeText(githubStats.username);
+      showToast(`Copied @${githubStats.username} to clipboard`);
     } catch {
-      showToast('GitHub: Faisal01011');
+      showToast(`GitHub: ${githubStats.username}`);
     }
   };
 
@@ -130,7 +120,7 @@ export default function ContactForm({ onSuccess, showToast }: ContactFormProps) 
               {sending ? 'Sending…' : sent ? 'Sent ✓' : 'Send message'}
             </button>
             <button type="button" className="btn btn-ghost" onClick={handleCopy}>
-              Copy @Faisal01011
+              Copy @{githubStats.username}
             </button>
             <a
               className="btn btn-ghost"
